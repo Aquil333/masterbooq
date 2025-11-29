@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Барбер/Майстер
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String
+  slug          String    @unique
+  phone         String?
+  avatarUrl     String?
+  description   String?
+  address       String?
+  instagram     String?
+  telegramId    String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  services      Service[]
+  workingHours  WorkingHours[]
+  bookings      Booking[]
+  blockedSlots  BlockedSlot[]
+}
+
+// Послуга
+model Service {
+  id              String    @id @default(cuid())
+  userId          String
+  name            String
+  description     String?
+  durationMinutes Int
+  price           Int
+  isActive        Boolean   @default(true)
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookings        Booking[]
+}
+
+// Графік роботи
+model WorkingHours {
+  id          String   @id @default(cuid())
+  userId      String
+  dayOfWeek   Int      // 0 = неділя, 1 = понеділок, ..., 6 = субота
+  startTime   String   // "09:00"
+  endTime     String   // "18:00"
+  isWorking   Boolean  @default(true)
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dayOfWeek])
+}
+
+// Запис/Бронювання
+model Booking {
+  id            String        @id @default(cuid())
+  userId        String
+  serviceId     String
+  clientName    String
+  clientPhone   String
+  date          DateTime      @db.Date
+  startTime     String        // "10:00"
+  endTime       String        // "10:30"
+  status        BookingStatus @default(PENDING)
+  paymentStatus PaymentStatus @default(NONE)
+  paymentMethod PaymentMethod?
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  service       Service       @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+}
+
+// Блокування часу (обід, вихідний, відпустка)
+model BlockedSlot {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  startTime String   // "12:00"
+  endTime   String   // "13:00"
+  reason    String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Статуси запису
+enum BookingStatus {
+  PENDING     // Очікує підтвердження
+  CONFIRMED   // Підтверджено
+  CANCELLED   // Скасовано
+  COMPLETED   // Завершено
+}
+
+// Статуси оплати
+enum PaymentStatus {
+  NONE        // Не оплачено
+  PAID        // Оплачено
+}
+
+// Способи оплати
+enum PaymentMethod {
+  CASH        // Готівка
+  ONLINE      // Онлайн
+}
